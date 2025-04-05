@@ -49,11 +49,25 @@ export function ProfilePage() {
   const handleTokenValidation = async (token: string) => {
     try {
       setIsProcessingAuth(true);
+      setError(null);
+      
+      // Validate the token
       const isValid = await validateSpotifyToken(token);
+      
       if (isValid) {
         console.log('Token is valid');
+        // Ensure the token is stored
         localStorage.setItem('spotify_access_token', token);
         setSpotifyConnected(true);
+        
+        // Refresh the Supabase session to ensure auth state is preserved
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          await supabase.auth.setSession({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token
+          });
+        }
       } else {
         console.log('Token is invalid');
         clearSpotifyStorage();
@@ -61,6 +75,7 @@ export function ProfilePage() {
     } catch (err) {
       console.error('Error validating token:', err);
       clearSpotifyStorage();
+      setError(err instanceof Error ? err.message : 'Failed to validate token');
     } finally {
       setIsProcessingAuth(false);
     }
@@ -79,19 +94,32 @@ export function ProfilePage() {
 
     // Listen for Spotify auth completion from popup
     const handleMessage = async (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
+      // Verify the message origin
+      if (event.origin !== window.location.origin) {
+        console.log('Message received from different origin:', event.origin);
+        return;
+      }
       
       if (event.data.type === 'SPOTIFY_CALLBACK') {
         console.log('Received Spotify callback message:', event.data);
         
         if (event.data.accessToken) {
+          // Store the token immediately
+          localStorage.setItem('spotify_access_token', event.data.accessToken);
+          localStorage.setItem('spotify_auth_state', event.data.state);
+          
+          // Validate the token
           await handleTokenValidation(event.data.accessToken);
-        }
-      } else if (event.data.type === 'SPOTIFY_CLOSE_POPUP') {
-        // If we receive a close popup message, try to close any open popups
-        const popup = window.open('', '_self');
-        if (popup) {
-          popup.close();
+          
+          // Force a re-render of the auth state
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            // Update the session to ensure auth state is preserved
+            await supabase.auth.setSession({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token
+            });
+          }
         }
       }
     };

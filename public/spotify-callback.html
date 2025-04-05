@@ -16,6 +16,21 @@
       }, {});
     }
 
+    // Function to get the parent origin
+    function getParentOrigin() {
+      // Try to get the origin from the opener
+      if (window.opener) {
+        try {
+          return window.opener.location.origin;
+        } catch (e) {
+          console.log('Could not access opener origin directly');
+        }
+      }
+      
+      // Fallback to current origin
+      return window.location.origin;
+    }
+
     // Handle the Spotify callback
     try {
       if (window.location.hash) {
@@ -23,32 +38,32 @@
         const params = getHashParams();
         console.log('Callback parameters:', params);
 
+        const parentOrigin = getParentOrigin();
+        console.log('Parent origin:', parentOrigin);
+
         // Always send message to parent window if it exists
         if (window.opener) {
           console.log('Sending callback message to parent window');
+          
+          // Store the token in localStorage first
+          localStorage.setItem('spotify_access_token', params.access_token);
+          localStorage.setItem('spotify_auth_state', params.state);
+          
+          // Send message to parent
           window.opener.postMessage({ 
             type: 'SPOTIFY_CALLBACK',
             accessToken: params.access_token,
-            state: params.state
-          }, window.location.origin);
+            state: params.state,
+            timestamp: Date.now()
+          }, parentOrigin);
           
-          // Try multiple methods to close the window
+          // Try to close the window
           try {
             window.close();
           } catch (e) {
             console.log('Could not close window directly, trying alternative method');
-            // Try to redirect the parent window first
-            window.opener.postMessage({ 
-              type: 'SPOTIFY_CLOSE_POPUP'
-            }, window.location.origin);
-            // Then try to close this window
-            setTimeout(() => {
-              try {
-                window.close();
-              } catch (e) {
-                console.error('Failed to close window:', e);
-              }
-            }, 1000);
+            // Redirect to profile page as fallback
+            window.location.href = '/profile';
           }
         } else {
           // If we're not in a popup, store the token and redirect
