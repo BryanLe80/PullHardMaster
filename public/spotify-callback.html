@@ -16,21 +16,6 @@
       }, {});
     }
 
-    // Function to get the parent origin
-    function getParentOrigin() {
-      // Try to get the origin from the opener
-      if (window.opener) {
-        try {
-          return window.opener.location.origin;
-        } catch (e) {
-          console.log('Could not access opener origin directly');
-        }
-      }
-      
-      // Fallback to current origin
-      return window.location.origin;
-    }
-
     // Handle the Spotify callback
     try {
       if (window.location.hash) {
@@ -38,16 +23,13 @@
         const params = getHashParams();
         console.log('Callback parameters:', params);
 
-        const parentOrigin = getParentOrigin();
-        console.log('Parent origin:', parentOrigin);
+        // Store the token in localStorage first
+        localStorage.setItem('spotify_access_token', params.access_token);
+        localStorage.setItem('spotify_auth_state', params.state);
 
         // Always send message to parent window if it exists
         if (window.opener) {
           console.log('Sending callback message to parent window');
-          
-          // Store the token in localStorage first
-          localStorage.setItem('spotify_access_token', params.access_token);
-          localStorage.setItem('spotify_auth_state', params.state);
           
           // Send message to parent
           window.opener.postMessage({ 
@@ -55,7 +37,7 @@
             accessToken: params.access_token,
             state: params.state,
             timestamp: Date.now()
-          }, parentOrigin);
+          }, window.location.origin);
           
           // Try to close the window
           try {
@@ -66,12 +48,8 @@
             window.location.href = '/profile';
           }
         } else {
-          // If we're not in a popup, store the token and redirect
-          console.log('Not in popup, storing token and redirecting');
-          localStorage.setItem('spotify_access_token', params.access_token);
-          localStorage.setItem('spotify_auth_state', params.state);
-          
-          // Redirect to profile page
+          // If we're not in a popup, redirect to profile page
+          console.log('Not in popup, redirecting to profile');
           window.location.href = '/profile';
         }
       } else {

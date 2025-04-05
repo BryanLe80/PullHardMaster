@@ -1,8 +1,8 @@
 import { generateRandomString } from './utils';
 
 const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-// Use environment variable for redirect URI or fallback to current origin
-const SPOTIFY_REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI || `${window.location.origin}/spotify-callback.html`;
+// Always use the callback page for redirect
+const SPOTIFY_REDIRECT_URI = `${window.location.origin}/spotify-callback.html`;
 const STATE_KEY = 'spotify_auth_state';
 
 // Log the redirect URI in development
