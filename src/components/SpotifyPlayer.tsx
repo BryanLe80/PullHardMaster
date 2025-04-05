@@ -69,21 +69,26 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
   useEffect(() => {
     // Cleanup any existing player instances first
     const cleanupExistingPlayers = () => {
+      // Safely remove existing script
       const existingScript = document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]');
-      if (existingScript) {
+      if (existingScript && existingScript.parentNode) {
         console.log('Removing existing Spotify SDK script...');
-        document.body.removeChild(existingScript);
+        existingScript.parentNode.removeChild(existingScript);
       }
       
       // Reset any existing player state
       if (window.Spotify?.Player) {
         console.log('Cleaning up existing Spotify player...');
-        const existingPlayer = new window.Spotify.Player({
-          name: 'Cleanup Player',
-          getOAuthToken: () => {},
-          volume: 0
-        });
-        existingPlayer.disconnect();
+        try {
+          const existingPlayer = new window.Spotify.Player({
+            name: 'Cleanup Player',
+            getOAuthToken: () => {},
+            volume: 0
+          });
+          existingPlayer.disconnect();
+        } catch (err) {
+          console.log('Error during player cleanup:', err);
+        }
       }
     };
 
@@ -120,7 +125,9 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
     return () => {
       // Cleanup
       cleanupExistingPlayers();
-      document.body.removeChild(script);
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
       window.onSpotifyWebPlaybackSDKReady = null;
       console.error = originalError;
     };
@@ -307,7 +314,11 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
     const handleBeforeUnload = () => {
       if (player) {
         console.log('Disconnecting Spotify player before unload...');
-        player.disconnect();
+        try {
+          player.disconnect();
+        } catch (err) {
+          console.log('Error during player disconnect:', err);
+        }
       }
     };
 
