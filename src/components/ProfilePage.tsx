@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Music } from 'lucide-react';
-import { initiateSpotifyAuth, handleSpotifyCallback, validateSpotifyToken } from '../lib/spotify';
+import { initiateSpotifyAuth, validateSpotifyToken } from '../lib/spotify';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -47,46 +47,7 @@ export function ProfilePage() {
 
   // Handle Spotify connection
   useEffect(() => {
-    // Check for Spotify callback
-    if (window.location.hash) {
-      console.log('Handling Spotify callback in ProfilePage');
-      const result = handleSpotifyCallback();
-      
-      if (result.error) {
-        console.error('Spotify auth error:', result.error);
-        clearSpotifyStorage();
-        setError(result.error);
-        setIsProcessingAuth(false);
-        return;
-      }
-
-      if (result.accessToken) {
-        console.log('Spotify auth successful, validating token...');
-        validateSpotifyToken(result.accessToken)
-          .then(isValid => {
-            if (isValid) {
-              console.log('Spotify token is valid');
-              setSpotifyConnected(true);
-              // Clean up URL without triggering a navigation
-              window.history.replaceState({}, document.title, window.location.pathname);
-            } else {
-              console.error('Invalid Spotify token');
-              clearSpotifyStorage();
-            }
-          })
-          .catch(err => {
-            console.error('Error validating Spotify token:', err);
-            clearSpotifyStorage();
-          })
-          .finally(() => {
-            setIsProcessingAuth(false);
-          });
-      } else {
-        setIsProcessingAuth(false);
-      }
-    } else {
-      checkSpotifyConnection();
-    }
+    checkSpotifyConnection();
 
     // Listen for Spotify auth completion
     const handleMessage = async (event: MessageEvent) => {
@@ -102,6 +63,7 @@ export function ProfilePage() {
           const isValid = await validateSpotifyToken(event.data.accessToken);
           if (isValid) {
             console.log('Token from message is valid');
+            localStorage.setItem('spotify_access_token', event.data.accessToken);
             setSpotifyConnected(true);
           } else {
             console.log('Token from message is invalid');
@@ -113,9 +75,6 @@ export function ProfilePage() {
         } finally {
           setIsProcessingAuth(false);
         }
-      } else {
-        // If no token in message, check the connection
-        await checkSpotifyConnection();
       }
     };
 
