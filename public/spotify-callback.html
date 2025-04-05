@@ -40,16 +40,20 @@
           localStorage.setItem('spotify_access_token', params.access_token);
           localStorage.setItem('spotify_auth_state', params.state);
           
-          // Redirect to profile page
-          window.location.href = '/profile';
+          // Use replaceState to avoid full page reload
+          window.history.replaceState({}, '', '/profile');
+          // Trigger a soft navigation
+          window.dispatchEvent(new PopStateEvent('popstate'));
         }
       } else {
         console.log('No hash found in URL');
-        window.location.href = '/profile';
+        window.history.replaceState({}, '', '/profile');
+        window.dispatchEvent(new PopStateEvent('popstate'));
       }
     } catch (error) {
       console.error('Error in callback page:', error);
-      window.location.href = '/profile';
+      window.history.replaceState({}, '', '/profile');
+      window.dispatchEvent(new PopStateEvent('popstate'));
     }
   </script>
 </head>

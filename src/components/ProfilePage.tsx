@@ -89,8 +89,21 @@ export function ProfilePage() {
       }
     };
 
+    // Listen for popstate events (soft navigation)
+    const handlePopState = () => {
+      const storedToken = localStorage.getItem('spotify_access_token');
+      if (storedToken) {
+        handleTokenValidation(storedToken);
+      }
+    };
+
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
 
   const handleSpotifyConnect = () => {
