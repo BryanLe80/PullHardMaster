@@ -165,33 +165,43 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
 
     const initializePlayer = async () => {
       try {
+        console.log('Starting player initialization...');
+        
         // Cleanup any existing player first
         if (player) {
           console.log('Disconnecting existing player before initialization...');
           await player.disconnect();
         }
 
+        console.log('Creating new player instance...');
         const newPlayer = new window.Spotify.Player({
           name: 'PullHard Web Player',
-          getOAuthToken: cb => cb(accessToken),
+          getOAuthToken: cb => {
+            console.log('Getting OAuth token...');
+            cb(accessToken);
+          },
           volume: 0.5
         });
 
         // Error handling
         newPlayer.addListener('initialization_error', ({ message }: { message: string }) => {
           console.error('Failed to initialize:', message);
+          setError('Failed to initialize player. Please refresh the page.');
         });
 
         newPlayer.addListener('authentication_error', ({ message }: { message: string }) => {
           console.error('Failed to authenticate:', message);
+          setError('Authentication failed. Please reconnect to Spotify.');
         });
 
         newPlayer.addListener('account_error', ({ message }: { message: string }) => {
           console.error('Failed to validate Spotify account:', message);
+          setError('Spotify Premium is required for playback.');
         });
 
         newPlayer.addListener('playback_error', ({ message }: { message: string }) => {
           console.error('Failed to perform playback:', message);
+          setError('Playback error. Please try again.');
         });
 
         // Playback status updates
@@ -200,7 +210,7 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
           const track = state.track_window.current_track;
           setCurrentTrack({
             ...track,
-            id: track.uri.split(':')[2], // Extract track ID from URI
+            id: track.uri.split(':')[2],
             uri: track.uri
           });
           setIsPlaying(!state.paused);
@@ -208,22 +218,30 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
 
         // Ready
         newPlayer.addListener('ready', ({ device_id }: { device_id: string }) => {
-          console.log('Ready with Device ID', device_id);
+          console.log('Player is ready with Device ID:', device_id);
           setDeviceId(device_id);
+          setError(null);
         });
 
         // Not Ready
         newPlayer.addListener('not_ready', ({ device_id }: { device_id: string }) => {
-          console.log('Device ID has gone offline', device_id);
+          console.log('Device ID has gone offline:', device_id);
+          setDeviceId(null);
         });
 
         // Connect to the player
+        console.log('Connecting to player...');
         const connected = await newPlayer.connect();
         if (connected) {
+          console.log('Successfully connected to player');
           setPlayer(newPlayer);
+        } else {
+          console.error('Failed to connect to player');
+          setError('Failed to connect to Spotify player. Please try again.');
         }
       } catch (error) {
         console.error('Error initializing Spotify player:', error);
+        setError('Failed to initialize Spotify player. Please refresh the page.');
       }
     };
 
