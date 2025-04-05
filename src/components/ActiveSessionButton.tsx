@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Timer } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -8,17 +8,7 @@ export function ActiveSessionButton() {
   const [activeSession, setActiveSession] = useState<ClimbingSession | null>(null);
   const location = useLocation();
 
-  useEffect(() => {
-    // Check immediately when component mounts
-    checkForActiveSession();
-
-    // Then check every 5 seconds
-    const intervalId = setInterval(checkForActiveSession, 5000);
-
-    // Cleanup interval on unmount
-    return () => clearInterval(intervalId);
-  }, []);
-
+  // Function to check for active session
   const checkForActiveSession = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -59,6 +49,18 @@ export function ActiveSessionButton() {
       setActiveSession(null);
     }
   };
+
+  // Listen for session start events
+  useEffect(() => {
+    const handleSessionStart = (event: StorageEvent) => {
+      if (event.key?.startsWith('session_start_')) {
+        checkForActiveSession();
+      }
+    };
+
+    window.addEventListener('storage', handleSessionStart);
+    return () => window.removeEventListener('storage', handleSessionStart);
+  }, []);
 
   // Don't show the button if we're already on the active session page
   if (!activeSession || location.pathname === `/session/${activeSession.id}`) return null;

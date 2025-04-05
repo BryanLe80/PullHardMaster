@@ -54,6 +54,13 @@ export function NewSessionModal({ onClose, onSuccess, existingLocations }: NewSe
 
       onSuccess();
       onClose();
+      // Store session start time in localStorage to trigger session check
+      localStorage.setItem(`session_start_${data.id}`, new Date().toISOString());
+      // Trigger storage event to notify other tabs
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: `session_start_${data.id}`,
+        newValue: new Date().toISOString()
+      }));
       navigate(`/session/${data.id}`);
     } catch (err) {
       setError(err.message);
