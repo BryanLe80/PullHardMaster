@@ -1,19 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { Music, Play, Pause, SkipForward, SkipBack, Volume2, ListMusic, Loader, Volume1, VolumeX } from 'lucide-react';
 
-type SpotifyPlayerProps = {
+// Add Spotify type definition
+declare global {
+  interface Window {
+    Spotify: {
+      Player: new (config: {
+        name: string;
+        getOAuthToken: (cb: (token: string) => void) => void;
+        volume: number;
+      }) => {
+        connect: () => Promise<boolean>;
+        disconnect: () => Promise<void>;
+        addListener: (event: string, callback: (data: any) => void) => void;
+      };
+    };
+    onSpotifyWebPlaybackSDKReady: (() => void) | null;
+  }
+}
+
+interface SpotifyPlayerProps {
   accessToken: string;
-};
+  onError?: (error: string) => void;
+}
 
 type SpotifyTrack = {
-  id: string;
   name: string;
-  uri: string;
-  artists: { name: string }[];
+  artists: Array<{ name: string }>;
   album: {
     name: string;
-    images: { url: string }[];
+    images: Array<{ url: string }>;
   };
+  duration_ms: number;
+  id: string;
+  uri: string;
 };
 
 type SpotifyPlaylist = {
@@ -22,19 +42,6 @@ type SpotifyPlaylist = {
   images: { url: string }[];
   uri: string;
 };
-
-declare global {
-  interface Window {
-    onSpotifyWebPlaybackSDKReady: (() => void) | null;
-    Spotify: {
-      Player: new (config: {
-        name: string;
-        getOAuthToken: (cb: (token: string) => void) => void;
-        volume: number;
-      }) => any;
-    };
-  }
-}
 
 interface WebPlaybackError {
   message: string;
@@ -46,7 +53,16 @@ interface WebPlaybackReady {
 
 interface WebPlaybackState {
   track_window: {
-    current_track: SpotifyTrack;
+    current_track: {
+      name: string;
+      artists: Array<{ name: string }>;
+      album: {
+        name: string;
+        images: Array<{ url: string }>;
+      };
+      duration_ms: number;
+      uri: string;
+    };
   };
   paused: boolean;
 }
@@ -80,12 +96,22 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
       if (window.Spotify?.Player) {
         console.log('Cleaning up existing Spotify player...');
         try {
+          // Create a temporary player instance to disconnect
           const existingPlayer = new window.Spotify.Player({
             name: 'Cleanup Player',
             getOAuthToken: () => {},
             volume: 0
           });
-          existingPlayer.disconnect();
+          
+          // Ensure the player is properly disconnected
+          existingPlayer.disconnect().then(() => {
+            console.log('Successfully disconnected existing player');
+          }).catch((err: Error) => {
+            console.log('Error during player disconnect:', err);
+          });
+          
+          // Clear any stored player state
+          localStorage.removeItem('spotify-player-state');
         } catch (err) {
           console.log('Error during player cleanup:', err);
         }
@@ -133,189 +159,98 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
     };
   }, []);
 
-  // Initialize player when SDK is ready
+  // Initialize Spotify player
   useEffect(() => {
     if (!isSDKReady || !accessToken) return;
 
-    // Define the handler at the top level of the effect
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      if (
-        event.reason?.message?.includes?.('PlayLoad event failed') ||
-        event.reason?.toString?.()?.includes?.('PlayLoad event failed')
-      ) {
-        event.preventDefault(); // Prevent the error from appearing in console
-      }
-    };
-
-    // Add the handler
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
-
     const initializePlayer = async () => {
       try {
-        // First validate the token and check for Premium
-        const response = await fetch('https://api.spotify.com/v1/me', {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to validate Spotify token');
+        // Cleanup any existing player first
+        if (player) {
+          console.log('Disconnecting existing player before initialization...');
+          await player.disconnect();
         }
 
-        const data = await response.json();
-        if (data.product !== 'premium') {
-          setError('Spotify Premium is required to use the player.');
-          setIsInitializing(false);
-          return;
-        }
-
-        // If token is valid and user has Premium, initialize the player
-        const player = new window.Spotify.Player({
+        const newPlayer = new window.Spotify.Player({
           name: 'PullHard Web Player',
-          getOAuthToken: (cb: (token: string) => void) => {
-            const currentToken = localStorage.getItem('spotify_access_token');
-            if (currentToken) {
-              cb(currentToken);
-            } else {
-              setError('Spotify token expired. Please reconnect.');
-            }
-          },
-          volume: volume / 100
+          getOAuthToken: cb => cb(accessToken),
+          volume: 0.5
         });
 
-        // Handle Ready
-        player.addListener('ready', async ({ device_id }: WebPlaybackReady) => {
+        // Error handling
+        newPlayer.addListener('initialization_error', ({ message }: { message: string }) => {
+          console.error('Failed to initialize:', message);
+        });
+
+        newPlayer.addListener('authentication_error', ({ message }: { message: string }) => {
+          console.error('Failed to authenticate:', message);
+        });
+
+        newPlayer.addListener('account_error', ({ message }: { message: string }) => {
+          console.error('Failed to validate Spotify account:', message);
+        });
+
+        newPlayer.addListener('playback_error', ({ message }: { message: string }) => {
+          console.error('Failed to perform playback:', message);
+        });
+
+        // Playback status updates
+        newPlayer.addListener('player_state_changed', (state: WebPlaybackState | null) => {
+          if (!state) return;
+          const track = state.track_window.current_track;
+          setCurrentTrack({
+            ...track,
+            id: track.uri.split(':')[2], // Extract track ID from URI
+            uri: track.uri
+          });
+          setIsPlaying(!state.paused);
+        });
+
+        // Ready
+        newPlayer.addListener('ready', ({ device_id }: { device_id: string }) => {
           console.log('Ready with Device ID', device_id);
           setDeviceId(device_id);
-          setIsInitializing(false);
-          setError(null);
-
-          try {
-            // Get all available devices first
-            const devicesResponse = await fetch('https://api.spotify.com/v1/me/player/devices', {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`
-              }
-            });
-
-            if (!devicesResponse.ok) {
-              throw new Error('Failed to get devices');
-            }
-
-            // Then set this device as active
-            const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
-              method: 'PUT',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                device_ids: [device_id],
-                play: false,
-              }),
-            });
-
-            if (!transferResponse.ok && transferResponse.status !== 204) {
-              throw new Error('Failed to set active device');
-            }
-
-            // Get current playback state
-            const stateResponse = await fetch('https://api.spotify.com/v1/me/player', {
-              headers: {
-                'Authorization': `Bearer ${accessToken}`
-              }
-            });
-
-            if (stateResponse.ok && stateResponse.status !== 204) {
-              const state = await stateResponse.json();
-              if (state.item) {
-                setCurrentTrack(state.item);
-                setIsPlaying(!state.is_playing);
-              }
-            }
-
-            console.log('Successfully activated device');
-          } catch (err) {
-            console.error('Error during device activation:', err);
-            // Don't set error here, just log it - the player might still work
-          }
         });
 
-        // Other event listeners...
-        player.addListener('not_ready', ({ device_id }: WebPlaybackReady) => {
+        // Not Ready
+        newPlayer.addListener('not_ready', ({ device_id }: { device_id: string }) => {
           console.log('Device ID has gone offline', device_id);
-          setDeviceId(null);
-        });
-
-        player.addListener('player_state_changed', (state: WebPlaybackState | null) => {
-          if (state) {
-            setCurrentTrack(state.track_window.current_track);
-            setIsPlaying(!state.paused);
-          }
-        });
-
-        player.addListener('initialization_error', ({ message }: WebPlaybackError) => {
-          console.error('Failed to initialize:', message);
-          // Try to reconnect once
-          player.connect().catch(() => {
-            setError('Failed to initialize player. Please refresh the page.');
-            setIsInitializing(false);
-          });
-        });
-
-        player.addListener('authentication_error', ({ message }: WebPlaybackError) => {
-          console.error('Failed to authenticate:', message);
-          localStorage.removeItem('spotify_access_token');
-          setError('Authentication failed. Please reconnect to Spotify.');
-          setIsInitializing(false);
-        });
-
-        player.addListener('account_error', ({ message }: WebPlaybackError) => {
-          console.error('Failed to validate Spotify account:', message);
-          setError('Spotify Premium is required for playback.');
-          setIsInitializing(false);
         });
 
         // Connect to the player
-        const success = await player.connect();
-        if (success) {
-          setPlayer(player);
-          setError(null);
-        } else {
-          throw new Error('Failed to connect to Spotify player');
+        const connected = await newPlayer.connect();
+        if (connected) {
+          setPlayer(newPlayer);
         }
-
-      } catch (err) {
-        console.error('Error initializing player:', err);
-        setError('Failed to initialize Spotify player. Please refresh the page.');
-        setIsInitializing(false);
+      } catch (error) {
+        console.error('Error initializing Spotify player:', error);
       }
     };
 
     initializePlayer();
 
-    // Cleanup function
     return () => {
       if (player) {
-        console.log('Disconnecting Spotify player...');
-        player.disconnect();
-        setPlayer(null);
-        setDeviceId(null);
-        setCurrentTrack(null);
-        setIsPlaying(false);
+        console.log('Cleaning up player on unmount...');
+        player.disconnect().then(() => {
+          console.log('Successfully disconnected player on unmount');
+        }).catch((err: Error) => {
+          console.log('Error disconnecting player on unmount:', err);
+        });
       }
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
-  }, [accessToken, isSDKReady]);
+  }, [isSDKReady, accessToken]);
 
   // Add effect to handle session end
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handleBeforeUnload = async () => {
       if (player) {
         console.log('Disconnecting Spotify player before unload...');
         try {
-          player.disconnect();
+          await player.disconnect();
+          // Clear any stored player state
+          localStorage.removeItem('spotify-player-state');
+          console.log('Successfully disconnected player before unload');
         } catch (err) {
           console.log('Error during player disconnect:', err);
         }
