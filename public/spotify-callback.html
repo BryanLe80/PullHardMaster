@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Spotify Auth Callback</title>
+</head>
+<body>
+  <script>
+    // Function to parse hash parameters
+    function getHashParams() {
+      const hash = window.location.hash.substring(1);
+      return hash.split('&').reduce((params, pair) => {
+        const [key, value] = pair.split('=');
+        params[key] = decodeURIComponent(value);
+        return params;
+      }, {});
+    }
+
+    // Handle the callback
+    window.onload = function() {
+      const params = getHashParams();
+      
+      // Store the token in localStorage
+      if (params.access_token) {
+        window.localStorage.setItem('spotify_access_token', params.access_token);
+      }
+
+      // Notify the parent window
+      window.opener.postMessage(
+        { 
+          type: 'SPOTIFY_CALLBACK',
+          ...params
+        }, 
+        window.location.origin
+      );
+    };
+  </script>
+  <div style="text-align: center; padding: 20px; font-family: system-ui, -apple-system, sans-serif;">
+    <h2>Connecting to Spotify...</h2>
+    <p>This window will close automatically.</p>
+  </div>
+</body>
+</html> 
