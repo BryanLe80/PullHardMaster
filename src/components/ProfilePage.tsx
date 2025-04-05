@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Music } from 'lucide-react';
-import { initiateSpotifyAuth, handleSpotifyCallback, validateSpotifyToken } from '../lib/spotify';
+import { initiateSpotifyAuth, validateSpotifyToken } from '../lib/spotify';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -54,8 +54,6 @@ export function ProfilePage() {
         console.log('Token is valid');
         localStorage.setItem('spotify_access_token', token);
         setSpotifyConnected(true);
-        // Clean up URL without triggering a navigation
-        window.history.replaceState({}, document.title, window.location.pathname);
       } else {
         console.log('Token is invalid');
         clearSpotifyStorage();
@@ -70,18 +68,14 @@ export function ProfilePage() {
 
   // Handle Spotify connection
   useEffect(() => {
-    // Check for token in URL hash
-    if (window.location.hash) {
-      const params = new URLSearchParams(window.location.hash.substring(1));
-      const token = params.get('access_token');
-      if (token) {
-        handleTokenValidation(token);
-        return;
-      }
+    // Check for stored token
+    const storedToken = localStorage.getItem('spotify_access_token');
+    if (storedToken) {
+      handleTokenValidation(storedToken);
+    } else {
+      // If no stored token, check existing connection
+      checkSpotifyConnection();
     }
-
-    // If no token in URL, check existing connection
-    checkSpotifyConnection();
 
     // Listen for Spotify auth completion from popup
     const handleMessage = async (event: MessageEvent) => {
