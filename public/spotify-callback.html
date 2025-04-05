@@ -32,28 +32,40 @@
             state: params.state
           }, window.location.origin);
           
-          // Close the popup after sending the message
-          window.close();
+          // Try multiple methods to close the window
+          try {
+            window.close();
+          } catch (e) {
+            console.log('Could not close window directly, trying alternative method');
+            // Try to redirect the parent window first
+            window.opener.postMessage({ 
+              type: 'SPOTIFY_CLOSE_POPUP'
+            }, window.location.origin);
+            // Then try to close this window
+            setTimeout(() => {
+              try {
+                window.close();
+              } catch (e) {
+                console.error('Failed to close window:', e);
+              }
+            }, 1000);
+          }
         } else {
           // If we're not in a popup, store the token and redirect
           console.log('Not in popup, storing token and redirecting');
           localStorage.setItem('spotify_access_token', params.access_token);
           localStorage.setItem('spotify_auth_state', params.state);
           
-          // Use replaceState to avoid full page reload
-          window.history.replaceState({}, '', '/profile');
-          // Trigger a soft navigation
-          window.dispatchEvent(new PopStateEvent('popstate'));
+          // Redirect to profile page
+          window.location.href = '/profile';
         }
       } else {
         console.log('No hash found in URL');
-        window.history.replaceState({}, '', '/profile');
-        window.dispatchEvent(new PopStateEvent('popstate'));
+        window.location.href = '/profile';
       }
     } catch (error) {
       console.error('Error in callback page:', error);
-      window.history.replaceState({}, '', '/profile');
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      window.location.href = '/profile';
     }
   </script>
 </head>

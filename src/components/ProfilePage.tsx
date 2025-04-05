@@ -80,29 +80,26 @@ export function ProfilePage() {
     // Listen for Spotify auth completion from popup
     const handleMessage = async (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
-      if (event.data.type !== 'SPOTIFY_CALLBACK') return;
-
-      console.log('Received Spotify callback message:', event.data);
       
-      if (event.data.accessToken) {
-        handleTokenValidation(event.data.accessToken);
-      }
-    };
-
-    // Listen for popstate events (soft navigation)
-    const handlePopState = () => {
-      const storedToken = localStorage.getItem('spotify_access_token');
-      if (storedToken) {
-        handleTokenValidation(storedToken);
+      if (event.data.type === 'SPOTIFY_CALLBACK') {
+        console.log('Received Spotify callback message:', event.data);
+        
+        if (event.data.accessToken) {
+          await handleTokenValidation(event.data.accessToken);
+        }
+      } else if (event.data.type === 'SPOTIFY_CLOSE_POPUP') {
+        // If we receive a close popup message, try to close any open popups
+        const popup = window.open('', '_self');
+        if (popup) {
+          popup.close();
+        }
       }
     };
 
     window.addEventListener('message', handleMessage);
-    window.addEventListener('popstate', handlePopState);
     
     return () => {
       window.removeEventListener('message', handleMessage);
-      window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 
