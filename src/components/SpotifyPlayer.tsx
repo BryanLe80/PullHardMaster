@@ -264,13 +264,35 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
 
     initializePlayer();
 
+    // Cleanup function
     return () => {
       if (player) {
+        console.log('Disconnecting Spotify player...');
         player.disconnect();
+        setPlayer(null);
+        setDeviceId(null);
+        setCurrentTrack(null);
+        setIsPlaying(false);
       }
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, [accessToken, isSDKReady]);
+
+  // Add effect to handle session end
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (player) {
+        console.log('Disconnecting Spotify player before unload...');
+        player.disconnect();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [player]);
 
   useEffect(() => {
     const fetchPlaylists = async () => {
