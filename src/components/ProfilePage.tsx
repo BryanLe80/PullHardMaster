@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Music } from 'lucide-react';
-import { initiateSpotifyAuth, validateSpotifyToken } from '../lib/spotify';
+import { initiateSpotifyAuth, handleSpotifyCallback, validateSpotifyToken } from '../lib/spotify';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
@@ -45,36 +45,53 @@ export function ProfilePage() {
     }
   };
 
+  // Handle token validation and storage
+  const handleTokenValidation = async (token: string) => {
+    try {
+      setIsProcessingAuth(true);
+      const isValid = await validateSpotifyToken(token);
+      if (isValid) {
+        console.log('Token is valid');
+        localStorage.setItem('spotify_access_token', token);
+        setSpotifyConnected(true);
+        // Clean up URL without triggering a navigation
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else {
+        console.log('Token is invalid');
+        clearSpotifyStorage();
+      }
+    } catch (err) {
+      console.error('Error validating token:', err);
+      clearSpotifyStorage();
+    } finally {
+      setIsProcessingAuth(false);
+    }
+  };
+
   // Handle Spotify connection
   useEffect(() => {
+    // Check for token in URL hash
+    if (window.location.hash) {
+      const params = new URLSearchParams(window.location.hash.substring(1));
+      const token = params.get('access_token');
+      if (token) {
+        handleTokenValidation(token);
+        return;
+      }
+    }
+
+    // If no token in URL, check existing connection
     checkSpotifyConnection();
 
-    // Listen for Spotify auth completion
+    // Listen for Spotify auth completion from popup
     const handleMessage = async (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (event.data.type !== 'SPOTIFY_CALLBACK') return;
 
       console.log('Received Spotify callback message:', event.data);
       
-      // If we have an access token in the message, validate it
       if (event.data.accessToken) {
-        try {
-          setIsProcessingAuth(true);
-          const isValid = await validateSpotifyToken(event.data.accessToken);
-          if (isValid) {
-            console.log('Token from message is valid');
-            localStorage.setItem('spotify_access_token', event.data.accessToken);
-            setSpotifyConnected(true);
-          } else {
-            console.log('Token from message is invalid');
-            clearSpotifyStorage();
-          }
-        } catch (err) {
-          console.error('Error validating token from message:', err);
-          clearSpotifyStorage();
-        } finally {
-          setIsProcessingAuth(false);
-        }
+        handleTokenValidation(event.data.accessToken);
       }
     };
 

@@ -23,7 +23,7 @@
         const params = getHashParams();
         console.log('Callback parameters:', params);
 
-        // If we're in a popup, send message to parent
+        // Always send message to parent window if it exists
         if (window.opener) {
           console.log('Sending callback message to parent window');
           window.opener.postMessage({ 
@@ -35,22 +35,18 @@
           // Close the popup after sending the message
           window.close();
         } else {
-          // If we're not in a popup, store the token and redirect
-          console.log('Not in popup, storing token and redirecting');
-          localStorage.setItem('spotify_access_token', params.access_token);
-          window.location.href = '/profile';
+          // If we're not in a popup, redirect with the token in the URL
+          console.log('Not in popup, redirecting with token');
+          // Redirect to profile page with token in hash
+          window.location.href = `/profile#access_token=${params.access_token}&state=${params.state}`;
         }
       } else {
         console.log('No hash found in URL');
-        if (!window.opener) {
-          window.location.href = '/profile';
-        }
+        window.location.href = '/profile';
       }
     } catch (error) {
       console.error('Error in callback page:', error);
-      if (!window.opener) {
-        window.location.href = '/profile';
-      }
+      window.location.href = '/profile';
     }
   </script>
 </head>
