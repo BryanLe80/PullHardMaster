@@ -67,6 +67,29 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
 
   // Load Spotify SDK script
   useEffect(() => {
+    // Cleanup any existing player instances first
+    const cleanupExistingPlayers = () => {
+      const existingScript = document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]');
+      if (existingScript) {
+        console.log('Removing existing Spotify SDK script...');
+        document.body.removeChild(existingScript);
+      }
+      
+      // Reset any existing player state
+      if (window.Spotify?.Player) {
+        console.log('Cleaning up existing Spotify player...');
+        const existingPlayer = new window.Spotify.Player({
+          name: 'Cleanup Player',
+          getOAuthToken: () => {},
+          volume: 0
+        });
+        existingPlayer.disconnect();
+      }
+    };
+
+    // Run cleanup before initializing new player
+    cleanupExistingPlayers();
+
     // Suppress Spotify SDK errors
     const originalError = console.error;
     console.error = (...args) => {
@@ -96,6 +119,7 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
 
     return () => {
       // Cleanup
+      cleanupExistingPlayers();
       document.body.removeChild(script);
       window.onSpotifyWebPlaybackSDKReady = null;
       console.error = originalError;
