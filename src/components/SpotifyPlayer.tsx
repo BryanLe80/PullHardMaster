@@ -187,21 +187,25 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
         newPlayer.addListener('initialization_error', ({ message }: { message: string }) => {
           console.error('Failed to initialize:', message);
           setError('Failed to initialize player. Please refresh the page.');
+          setIsInitializing(false);
         });
 
         newPlayer.addListener('authentication_error', ({ message }: { message: string }) => {
           console.error('Failed to authenticate:', message);
           setError('Authentication failed. Please reconnect to Spotify.');
+          setIsInitializing(false);
         });
 
         newPlayer.addListener('account_error', ({ message }: { message: string }) => {
           console.error('Failed to validate Spotify account:', message);
           setError('Spotify Premium is required for playback.');
+          setIsInitializing(false);
         });
 
         newPlayer.addListener('playback_error', ({ message }: { message: string }) => {
           console.error('Failed to perform playback:', message);
           setError('Playback error. Please try again.');
+          setIsInitializing(false);
         });
 
         // Playback status updates
@@ -221,12 +225,14 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
           console.log('Player is ready with Device ID:', device_id);
           setDeviceId(device_id);
           setError(null);
+          setIsInitializing(false);
         });
 
         // Not Ready
         newPlayer.addListener('not_ready', ({ device_id }: { device_id: string }) => {
           console.log('Device ID has gone offline:', device_id);
           setDeviceId(null);
+          setIsInitializing(true);
         });
 
         // Connect to the player
