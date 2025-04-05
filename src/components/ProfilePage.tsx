@@ -17,54 +17,120 @@ export function ProfilePage() {
     setSpotifyConnected(false);
   };
 
+  // Check Spotify connection status
+  const checkSpotifyConnection = async () => {
+    try {
+      setIsProcessingAuth(true);
+      setError(null);
+
+      // Check existing Spotify connection
+      console.log('Checking existing Spotify connection...');
+      const storedToken = localStorage.getItem('spotify_access_token');
+      if (storedToken) {
+        const isValid = await validateSpotifyToken(storedToken);
+        setSpotifyConnected(isValid);
+        if (!isValid) {
+          console.log('Stored token is invalid, clearing...');
+          clearSpotifyStorage();
+        }
+      } else {
+        setSpotifyConnected(false);
+      }
+    } catch (err) {
+      console.error('Error in Spotify connection:', err);
+      clearSpotifyStorage();
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+    } finally {
+      setIsProcessingAuth(false);
+    }
+  };
+
   // Handle Spotify connection
   useEffect(() => {
-    const checkSpotifyConnection = async () => {
-      try {
-        setIsProcessingAuth(true);
-        setError(null);
-
-        // Check existing Spotify connection
-        console.log('Checking existing Spotify connection...');
-        const storedToken = localStorage.getItem('spotify_access_token');
-        if (storedToken) {
-          const isValid = await validateSpotifyToken(storedToken);
-          setSpotifyConnected(isValid);
-          if (!isValid) {
-            console.log('Stored token is invalid, clearing...');
-            clearSpotifyStorage();
-          }
-        }
-      } catch (err) {
-        console.error('Error in Spotify connection:', err);
+    // Check for Spotify callback
+    if (window.location.hash) {
+      console.log('Handling Spotify callback in ProfilePage');
+      const result = handleSpotifyCallback();
+      
+      if (result.error) {
+        console.error('Spotify auth error:', result.error);
         clearSpotifyStorage();
-        setError(err instanceof Error ? err.message : 'An unexpected error occurred');
-      } finally {
+        setError(result.error);
+        setIsProcessingAuth(false);
+        return;
+      }
+
+      if (result.accessToken) {
+        console.log('Spotify auth successful, validating token...');
+        validateSpotifyToken(result.accessToken)
+          .then(isValid => {
+            if (isValid) {
+              console.log('Spotify token is valid');
+              setSpotifyConnected(true);
+              // Clean up URL without triggering a navigation
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+              console.error('Invalid Spotify token');
+              clearSpotifyStorage();
+            }
+          })
+          .catch(err => {
+            console.error('Error validating Spotify token:', err);
+            clearSpotifyStorage();
+          })
+          .finally(() => {
+            setIsProcessingAuth(false);
+          });
+      } else {
         setIsProcessingAuth(false);
       }
-    };
-
-    checkSpotifyConnection();
+    } else {
+      checkSpotifyConnection();
+    }
 
     // Listen for Spotify auth completion
-    const handleSpotifyCallback = async (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if (event.data.type !== 'SPOTIFY_CALLBACK') return;
 
-      console.log('Received Spotify callback');
-      await checkSpotifyConnection();
+      console.log('Received Spotify callback message:', event.data);
+      
+      // If we have an access token in the message, validate it
+      if (event.data.accessToken) {
+        try {
+          setIsProcessingAuth(true);
+          const isValid = await validateSpotifyToken(event.data.accessToken);
+          if (isValid) {
+            console.log('Token from message is valid');
+            setSpotifyConnected(true);
+          } else {
+            console.log('Token from message is invalid');
+            clearSpotifyStorage();
+          }
+        } catch (err) {
+          console.error('Error validating token from message:', err);
+          clearSpotifyStorage();
+        } finally {
+          setIsProcessingAuth(false);
+        }
+      } else {
+        // If no token in message, check the connection
+        await checkSpotifyConnection();
+      }
     };
 
-    window.addEventListener('message', handleSpotifyCallback);
-    return () => window.removeEventListener('message', handleSpotifyCallback);
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   const handleSpotifyConnect = () => {
     setError(null);
+    setIsProcessingAuth(true);
     
     try {
       if (spotifyConnected) {
         clearSpotifyStorage();
+        setIsProcessingAuth(false);
       } else {
         console.log('Starting Spotify connection...');
         clearSpotifyStorage();
@@ -74,6 +140,7 @@ export function ProfilePage() {
       console.error('Error connecting to Spotify:', err);
       clearSpotifyStorage();
       setError(err instanceof Error ? err.message : 'Failed to connect to Spotify');
+      setIsProcessingAuth(false);
     }
   };
 

@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Spotify Auth Callback</title>
-</head>
-<body>
+  <title>Spotify Authentication</title>
   <script>
+    // Log the current URL for debugging
+    console.log('Callback page loaded at:', window.location.href);
+    
     // Function to parse hash parameters
     function getHashParams() {
       const hash = window.location.hash.substring(1);
@@ -15,28 +16,33 @@
       }, {});
     }
 
-    // Handle the callback
-    window.onload = function() {
-      const params = getHashParams();
-      
-      // Store the token in localStorage
-      if (params.access_token) {
-        window.localStorage.setItem('spotify_access_token', params.access_token);
-      }
+    // Handle the Spotify callback
+    try {
+      if (window.location.hash) {
+        console.log('Processing Spotify callback hash');
+        const params = getHashParams();
+        console.log('Callback parameters:', params);
 
-      // Notify the parent window
-      window.opener.postMessage(
-        { 
-          type: 'SPOTIFY_CALLBACK',
-          ...params
-        }, 
-        window.location.origin
-      );
-    };
+        // Send message to parent window
+        if (window.opener) {
+          console.log('Sending callback message to parent window');
+          window.opener.postMessage({ 
+            type: 'SPOTIFY_CALLBACK',
+            accessToken: params.access_token,
+            state: params.state
+          }, window.location.origin);
+        } else {
+          console.log('No parent window found');
+        }
+      } else {
+        console.log('No hash found in URL');
+      }
+    } catch (error) {
+      console.error('Error in callback page:', error);
+    }
   </script>
-  <div style="text-align: center; padding: 20px; font-family: system-ui, -apple-system, sans-serif;">
-    <h2>Connecting to Spotify...</h2>
-    <p>This window will close automatically.</p>
-  </div>
+</head>
+<body>
+  <p>Authentication complete. You can close this window.</p>
 </body>
 </html> 

@@ -65,11 +65,26 @@ export function initiateSpotifyAuth() {
   // Set up message listener for the popup response
   window.addEventListener('message', function handleSpotifyCallback(event) {
     // Only handle messages from our popup
-    if (event.origin !== window.location.origin) return;
+    if (event.origin !== window.location.origin) {
+      console.log('Ignoring message from different origin:', event.origin);
+      return;
+    }
 
     // Check if this is our Spotify callback
     if (event.data.type === 'SPOTIFY_CALLBACK') {
-      console.log('Received Spotify callback in parent window');
+      console.log('Received Spotify callback in parent window:', event.data);
+      
+      // Store the token if provided
+      if (event.data.accessToken) {
+        const storedState = localStorage.getItem(STATE_KEY);
+        if (event.data.state === storedState) {
+          localStorage.setItem('spotify_access_token', event.data.accessToken);
+          console.log('Successfully stored Spotify access token');
+        } else {
+          console.error('State mismatch in callback');
+        }
+      }
+
       window.removeEventListener('message', handleSpotifyCallback);
       if (authWindow) {
         authWindow.close();
@@ -82,7 +97,10 @@ export function handleSpotifyCallback(): {
   accessToken: string | null;
   error: string | null;
 } {
+  console.log('Handling Spotify callback, current URL:', window.location.href);
+  
   if (!window.location.hash) {
+    console.log('No hash found in URL');
     return { accessToken: null, error: null };
   }
 
@@ -93,39 +111,41 @@ export function handleSpotifyCallback(): {
     const storedState = localStorage.getItem(STATE_KEY);
     const error = params.get('error');
 
+    console.log('Callback parameters:', {
+      hasAccessToken: !!accessToken,
+      hasState: !!state,
+      hasStoredState: !!storedState,
+      error
+    });
+
     // Always clear state after getting it
     localStorage.removeItem(STATE_KEY);
 
     if (error) {
-      localStorage.removeItem('spotify_access_token');
       console.error('Spotify auth error:', error);
+      localStorage.removeItem('spotify_access_token');
       return { accessToken: null, error };
     }
 
     if (!accessToken) {
-      localStorage.removeItem('spotify_access_token');
-      console.error('No access token received from Spotify');
+      console.error('No access token in callback');
       return { accessToken: null, error: 'No access token received' };
     }
 
-    // Only verify state if we have both values
-    if (state && storedState && state !== storedState) {
+    if (!state || state !== storedState) {
+      console.error('State mismatch:', { received: state, stored: storedState });
       localStorage.removeItem('spotify_access_token');
-      console.error('State mismatch in Spotify auth');
-      return { accessToken: null, error: 'State verification failed' };
+      return { accessToken: null, error: 'State mismatch' };
     }
 
-    // Store the new access token
+    // Store the token
     localStorage.setItem('spotify_access_token', accessToken);
     console.log('Successfully stored Spotify access token');
 
     return { accessToken, error: null };
   } catch (err) {
-    // Clear everything on error
-    localStorage.removeItem(STATE_KEY);
-    localStorage.removeItem('spotify_access_token');
     console.error('Error handling Spotify callback:', err);
-    return { accessToken: null, error: err instanceof Error ? err.message : 'An unexpected error occurred' };
+    return { accessToken: null, error: 'Failed to process callback' };
   }
 }
 

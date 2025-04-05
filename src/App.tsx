@@ -11,6 +11,7 @@ import { WeatherPage } from './components/WeatherPage';
 import { TrainingPage } from './components/TrainingPage';
 import { ProfilePage } from './components/ProfilePage';
 import { RoutesPage } from './components/RoutesPage';
+import { ActiveSessionButton } from './components/ActiveSessionButton';
 import type { ClimbingSession } from './lib/supabase';
 import { handleSpotifyCallback } from './lib/spotify';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -272,15 +273,6 @@ function App() {
             <div className="flex items-center space-x-4">
               {(user || window.location.hash) && (
                 <>
-                  {isActiveSession && (
-                    <Link
-                      to={location.pathname}
-                      className="flex items-center text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full"
-                    >
-                      <Timer className="h-4 w-4 mr-1" />
-                      <span>Active Session</span>
-                    </Link>
-                  )}
                   <Link
                     to="/weather"
                     className="flex items-center text-gray-600 hover:text-gray-900"
@@ -360,16 +352,21 @@ function App() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
           </div>
         ) : user || window.location.hash ? (
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/session/:sessionId" element={<SessionTimer />} />
-            <Route path="/sessions" element={<SessionsPage />} />
-            <Route path="/weather" element={<WeatherPage />} />
-            <Route path="/routes" element={<RoutesPage />} />
-            <Route path="/training" element={<TrainingPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <div className="flex-1">
+            {/* Main content */}
+            <div className="flex-1">
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/session/:sessionId" element={<SessionTimer />} />
+                <Route path="/sessions" element={<SessionsPage />} />
+                <Route path="/routes" element={<RoutesPage />} />
+                <Route path="/weather" element={<WeatherPage />} />
+                <Route path="/training" element={<TrainingPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+              </Routes>
+              <ActiveSessionButton />
+            </div>
+          </div>
         ) : location.pathname === '/' ? (
           <div className="flex min-h-[calc(100vh-4rem)] flex-col justify-center py-12 sm:px-6 lg:px-8">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">

@@ -1,22 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Timer, StopCircle, Play, Pause, RefreshCw, Map, Music } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, differenceInSeconds, addMinutes } from 'date-fns';
 import { supabase } from '../lib/supabase';
-import type { ClimbingSession, Climb } from '../lib/types';
+import type { Route } from '../lib/types';
 import { LogRouteModal } from './LogRouteModal';
 import { SpotifyPlayer } from './SpotifyPlayer';
 
 type TimerState = 'setting' | 'running' | 'paused' | 'finished';
 
+interface ClimbingSession {
+  id: string;
+  location: string;
+  date: string;
+  energy_level: number;
+  session_quality: number;
+  notes?: string;
+}
+
+interface Climb {
+  id: string;
+  grade: string;
+  style: string;
+  route_name?: string;
+  session_id: string;
+  created_at: string;
+}
+
 export function SessionTimer() {
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const { sessionId } = useParams();
+  const [elapsedTime, setElapsedTime] = useState(() => {
+    const stored = localStorage.getItem(`session_start_${sessionId}`);
+    if (!stored) return 0;
+    return differenceInSeconds(new Date(), new Date(stored));
+  });
   const [isRunning, setIsRunning] = useState(false);
-  const [startTime] = useState(new Date());
+  const [startTime] = useState(() => {
+    const stored = localStorage.getItem(`session_start_${sessionId}`);
+    return stored ? new Date(stored) : new Date();
+  });
   
   const [restDuration, setRestDuration] = useState(3); // Default 3 minutes
-  const [restTimeRemaining, setRestTimeRemaining] = useState(restDuration * 60);
-  const [restTimerState, setRestTimerState] = useState<TimerState>('setting');
+  const [restStartTime, setRestStartTime] = useState<Date | null>(() => {
+    const stored = localStorage.getItem(`rest_start_${sessionId}`);
+    return stored ? new Date(stored) : null;
+  });
+  const [restEndTime, setRestEndTime] = useState<Date | null>(() => {
+    const stored = localStorage.getItem(`rest_end_${sessionId}`);
+    return stored ? new Date(stored) : null;
+  });
+  const [restTimeRemaining, setRestTimeRemaining] = useState(() => {
+    if (!restStartTime || !restEndTime) return restDuration * 60;
+    const remaining = differenceInSeconds(restEndTime, new Date());
+    return remaining > 0 ? remaining : 0;
+  });
+  const [restTimerState, setRestTimerState] = useState<TimerState>(() => {
+    if (restStartTime && restEndTime) {
+      const remaining = differenceInSeconds(restEndTime, new Date());
+      if (remaining <= 0) return 'finished';
+      return 'running';
+    }
+    return 'setting';
+  });
   
   const [showEndForm, setShowEndForm] = useState(false);
   const [sessionQuality, setSessionQuality] = useState(3);
@@ -28,7 +73,6 @@ export function SessionTimer() {
   const [showLogRoute, setShowLogRoute] = useState(false);
   const [selectedClimb, setSelectedClimb] = useState<Climb | null>(null);
   const navigate = useNavigate();
-  const { sessionId } = useParams();
 
   // Get Spotify access token from localStorage
   const spotifyAccessToken = localStorage.getItem('spotify_access_token');
@@ -41,11 +85,16 @@ export function SessionTimer() {
   }, [sessionId]);
 
   useEffect(() => {
-    let intervalId: number;
+    let intervalId: ReturnType<typeof setInterval>;
 
     if (isRunning) {
       intervalId = setInterval(() => {
-        setElapsedTime(prev => prev + 1);
+        setElapsedTime(prev => {
+          const newTime = prev + 1;
+          // Store the updated time
+          localStorage.setItem(`session_time_${sessionId}`, newTime.toString());
+          return newTime;
+        });
       }, 1000);
     }
 
@@ -54,25 +103,41 @@ export function SessionTimer() {
         clearInterval(intervalId);
       }
     };
-  }, [isRunning]);
+  }, [isRunning, sessionId]);
 
   useEffect(() => {
-    let intervalId: number;
+    // Store start time when component mounts
+    if (sessionId) {
+      localStorage.setItem(`session_start_${sessionId}`, startTime.toISOString());
+    }
+  }, [sessionId, startTime]);
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
 
     if (restTimerState === 'running' && restTimeRemaining > 0) {
       intervalId = setInterval(() => {
-        setRestTimeRemaining(prev => {
-          if (prev <= 1) {
-            setRestTimerState('finished');
-            return 0;
-          }
-          return prev - 1;
-        });
+        if (!restEndTime) return;
+        
+        const remaining = differenceInSeconds(restEndTime, new Date());
+        if (remaining <= 0) {
+          setRestTimerState('finished');
+          setRestTimeRemaining(0);
+          // Clear rest timer storage
+          localStorage.removeItem(`rest_start_${sessionId}`);
+          localStorage.removeItem(`rest_end_${sessionId}`);
+        } else {
+          setRestTimeRemaining(remaining);
+        }
       }, 1000);
     }
 
-    return () => clearInterval(intervalId);
-  }, [restTimerState]);
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [restTimerState, restEndTime, sessionId]);
 
   async function fetchSession() {
     try {
@@ -125,13 +190,37 @@ export function SessionTimer() {
   };
 
   const handleStartRest = () => {
+    const start = new Date();
+    const end = addMinutes(start, restDuration);
+    setRestStartTime(start);
+    setRestEndTime(end);
     setRestTimeRemaining(restDuration * 60);
     setRestTimerState('running');
+    
+    // Store rest timer state
+    localStorage.setItem(`rest_start_${sessionId}`, start.toISOString());
+    localStorage.setItem(`rest_end_${sessionId}`, end.toISOString());
   };
 
-  const handleEndSession = () => {
+  const handleResetRest = () => {
+    setRestTimerState('setting');
+    setRestStartTime(null);
+    setRestEndTime(null);
+    setRestTimeRemaining(restDuration * 60);
+    
+    // Clear rest timer storage
+    localStorage.removeItem(`rest_start_${sessionId}`);
+    localStorage.removeItem(`rest_end_${sessionId}`);
+  };
+
+  const handleEndSession = async () => {
     setShowEndForm(true);
     setIsRunning(false);
+    // Clear stored time when ending session
+    if (sessionId) {
+      localStorage.removeItem(`session_time_${sessionId}`);
+      localStorage.removeItem(`session_start_${sessionId}`);
+    }
   };
 
   const handleSubmitEnd = async (e: React.FormEvent) => {
@@ -331,7 +420,23 @@ export function SessionTimer() {
                   <div className="flex justify-center space-x-2">
                     {restTimerState !== 'finished' && (
                       <button
-                        onClick={() => setRestTimerState(restTimerState === 'running' ? 'paused' : 'running')}
+                        onClick={() => {
+                          if (restTimerState === 'running') {
+                            setRestTimerState('paused');
+                            // Store current remaining time
+                            if (restEndTime) {
+                              const pausedEnd = new Date(Date.now() + restTimeRemaining * 1000);
+                              setRestEndTime(pausedEnd);
+                              localStorage.setItem(`rest_end_${sessionId}`, pausedEnd.toISOString());
+                            }
+                          } else {
+                            setRestTimerState('running');
+                            // Update end time based on remaining time
+                            const newEnd = new Date(Date.now() + restTimeRemaining * 1000);
+                            setRestEndTime(newEnd);
+                            localStorage.setItem(`rest_end_${sessionId}`, newEnd.toISOString());
+                          }
+                        }}
                         className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700"
                       >
                         {restTimerState === 'running' ? (
@@ -348,7 +453,7 @@ export function SessionTimer() {
                       </button>
                     )}
                     <button
-                      onClick={() => setRestTimerState('setting')}
+                      onClick={handleResetRest}
                       className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                     >
                       <RefreshCw className="h-4 w-4 mr-1" />
@@ -369,7 +474,7 @@ export function SessionTimer() {
                     className="bg-white p-4 rounded-lg shadow-sm flex items-center justify-between"
                   >
                     <div>
-                      <h3 className="font-medium text-gray-900">{climb.name || climb.grade}</h3>
+                      <h3 className="font-medium text-gray-900">{climb.route_name || climb.grade}</h3>
                       <div className="mt-1 flex items-center text-sm text-gray-500">
                         <Map className="h-4 w-4 mr-1" />
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100">
@@ -415,7 +520,16 @@ export function SessionTimer() {
 
       {showLogRoute && selectedClimb && sessionId && (
         <LogRouteModal
-          route={selectedClimb}
+          route={{
+            id: selectedClimb.id,
+            user_id: '', // Will be set by the modal
+            name: selectedClimb.route_name || selectedClimb.grade,
+            location: '',
+            type: selectedClimb.style as "sport" | "trad" | "boulder",
+            grade: selectedClimb.grade,
+            created_at: selectedClimb.created_at,
+            updated_at: selectedClimb.created_at
+          }}
           sessionId={sessionId}
           onClose={() => {
             setShowLogRoute(false);
