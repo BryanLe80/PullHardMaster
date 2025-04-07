@@ -232,8 +232,8 @@ export function SessionTimer() {
       const { error: updateError } = await supabase
         .from('climbing_sessions')
         .update({
-          session_quality: sessionQuality,
-          notes: notes.trim() || null
+          end_time: new Date().toISOString(),
+          is_active: false
         })
         .eq('id', sessionId);
 
@@ -249,6 +249,38 @@ export function SessionTimer() {
   const handleLogClimb = (climb: Climb) => {
     setSelectedClimb(climb);
     setShowLogRoute(true);
+  };
+
+  const endSession = async () => {
+    try {
+      setError(null);
+      setIsEnding(true);
+
+      const { error: updateError } = await supabase
+        .from('climbing_sessions')
+        .update({
+          end_time: new Date().toISOString(),
+          is_active: false
+        })
+        .eq('id', sessionId);
+
+      if (updateError) throw updateError;
+
+      // Dispatch event to notify other components
+      window.dispatchEvent(new CustomEvent('sessionEnded', {
+        detail: { sessionId }
+      }));
+
+      // Clear session from localStorage
+      localStorage.removeItem('activeSession');
+
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Error ending session:', err);
+      setError(err instanceof Error ? err.message : 'Failed to end session');
+    } finally {
+      setIsEnding(false);
+    }
   };
 
   if (showEndForm) {
