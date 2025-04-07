@@ -228,26 +228,52 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
         });
 
         // Ready
-        newPlayer.addListener('ready', ({ device_id }: { device_id: string }) => {
+        newPlayer.addListener('ready', async ({ device_id }: { device_id: string }) => {
           console.log('Player is ready with Device ID:', device_id);
           setDeviceId(device_id);
           setError(null);
           setIsInitializing(false);
           
-          // Transfer playback to this device
-          fetch('https://api.spotify.com/v1/me/player', {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              device_ids: [device_id],
-              play: false
-            }),
-          }).catch(err => {
-            console.error('Error transferring playback:', err);
-          });
+          try {
+            // First ensure we're the active device
+            const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                device_ids: [device_id],
+                play: false
+              }),
+            });
+
+            if (!transferResponse.ok) {
+              throw new Error('Failed to transfer playback to this device');
+            }
+
+            // Wait a moment for the transfer to complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Then load a default playlist to ensure we have content
+            const playResponse = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                context_uri: 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M', // Default playlist
+              }),
+            });
+
+            if (!playResponse.ok) {
+              console.warn('Failed to load default playlist, but continuing...');
+            }
+          } catch (err) {
+            console.error('Error during device transfer:', err);
+            setError('Failed to initialize playback. Please try again.');
+          }
         });
 
         // Not Ready
@@ -360,13 +386,27 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
     }
 
     try {
-      // First ensure we have a track loaded
-      if (!currentTrack) {
-        console.log('No track loaded, loading default playlist...');
-        await handlePlayPlaylist('spotify:playlist:37i9dQZF1DXcBWIGoYBM5M'); // Default playlist
-        return;
+      // First ensure we're the active device
+      const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          device_ids: [deviceId],
+          play: false
+        }),
+      });
+
+      if (!transferResponse.ok) {
+        throw new Error('Failed to transfer playback to this device');
       }
 
+      // Wait a moment for the transfer to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Then handle play/pause
       if (isPlaying) {
         await player.pause();
       } else {
@@ -398,6 +438,7 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
     }
   };
 
+  // Handle playlist playback
   const handlePlayPlaylist = async (playlistUri: string) => {
     if (!player || !deviceId || !isSDKReady) {
       console.log('Player not ready');
@@ -405,8 +446,8 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
     }
 
     try {
-      // First transfer playback to this device
-      await fetch('https://api.spotify.com/v1/me/player', {
+      // First ensure we're the active device
+      const transferResponse = await fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -418,8 +459,15 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
         }),
       });
 
+      if (!transferResponse.ok) {
+        throw new Error('Failed to transfer playback to this device');
+      }
+
+      // Wait a moment for the transfer to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Then play the playlist
-      const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+      const playResponse = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -430,11 +478,11 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
         }),
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (response.status === 403) {
+      if (!playResponse.ok) {
+        const errorText = await playResponse.text();
+        if (playResponse.status === 403) {
           throw new Error('Premium account required for this feature');
-        } else if (response.status === 401) {
+        } else if (playResponse.status === 401) {
           throw new Error('Session expired. Please reconnect to Spotify');
         } else {
           throw new Error(`Failed to play playlist: ${errorText}`);
