@@ -209,35 +209,54 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
             }
 
             // Wait a moment for the transfer to complete
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            await new Promise(resolve => setTimeout(resolve, 3000));
 
-            // Then load a default playlist to ensure we have content
-            const playResponse = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
-              method: 'PUT',
+            // Get current playback state
+            const stateResponse = await fetch('https://api.spotify.com/v1/me/player', {
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
               },
-              body: JSON.stringify({
-                context_uri: 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M', // Default playlist
-              }),
             });
 
-            if (!playResponse.ok) {
-              console.warn('Failed to load default playlist, but continuing...');
-              // Don't throw an error here, just log it
+            if (!stateResponse.ok) {
+              console.warn('Failed to get player state, but continuing...');
+              return;
             }
 
-            // Wait a moment for the playlist to load
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            const state = await stateResponse.json();
+            
+            // Only load default playlist if no content is currently playing
+            if (!state || !state.item) {
+              console.log('No content playing, loading default playlist...');
+              const playResponse = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  context_uri: 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M', // Default playlist
+                }),
+              });
 
-            // Pause playback after loading
-            await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${device_id}`, {
-              method: 'PUT',
-              headers: {
-                'Authorization': `Bearer ${accessToken}`,
-              },
-            });
+              if (!playResponse.ok) {
+                console.warn('Failed to load default playlist, but continuing...');
+                return;
+              }
+
+              // Wait for playlist to load
+              await new Promise(resolve => setTimeout(resolve, 2000));
+
+              // Pause playback after loading
+              await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${device_id}`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                },
+              });
+            } else {
+              console.log('Content already playing, skipping default playlist load');
+            }
           } catch (err) {
             console.error('Error during device transfer:', err);
             setError('Failed to initialize playback. Please try again.');

@@ -11,27 +11,13 @@ export function ActiveSessionButton() {
   // Function to check for active session
   const checkForActiveSession = async () => {
     try {
-      const user = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.log('No user found');
         return;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/sessions?user_id=eq.${user.data.user.id}&is_active=eq.true&select=*`, {
-        headers: {
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch active session');
-      }
-
-      const data = await response.json();
-      console.log('Fetched sessions:', data);
-      
-      // Check if there's an active session in localStorage
+      // First check localStorage for active session
       const storedSession = localStorage.getItem('activeSession');
       if (storedSession) {
         const session = JSON.parse(storedSession);
@@ -49,9 +35,26 @@ export function ActiveSessionButton() {
       }
 
       // If no active session in localStorage, check the database
-      if (data && data.length > 0) {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No active session found, which is fine
+          console.log('No active session found in database');
+          setActiveSession(null);
+          return;
+        }
+        throw error;
+      }
+
+      if (data) {
         console.log('Found active session in database');
-        setActiveSession(data[0]);
+        setActiveSession(data);
       } else {
         console.log('No active session found');
         setActiveSession(null);
