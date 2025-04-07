@@ -210,8 +210,15 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
 
         // Playback status updates
         newPlayer.addListener('player_state_changed', (state: WebPlaybackState | null) => {
-          if (!state) return;
+          if (!state) {
+            console.log('No player state available');
+            return;
+          }
           const track = state.track_window.current_track;
+          if (!track) {
+            console.log('No current track available');
+            return;
+          }
           setCurrentTrack({
             ...track,
             id: track.uri.split(':')[2],
@@ -226,6 +233,21 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
           setDeviceId(device_id);
           setError(null);
           setIsInitializing(false);
+          
+          // Transfer playback to this device
+          fetch('https://api.spotify.com/v1/me/player', {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              device_ids: [device_id],
+              play: false
+            }),
+          }).catch(err => {
+            console.error('Error transferring playback:', err);
+          });
         });
 
         // Not Ready
@@ -332,9 +354,19 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
 
   // Handle play/pause
   const handlePlayPause = async () => {
-    if (!player) return;
+    if (!player || !deviceId) {
+      console.log('Player or device ID not available');
+      return;
+    }
 
     try {
+      // First ensure we have a track loaded
+      if (!currentTrack) {
+        console.log('No track loaded, loading default playlist...');
+        await handlePlayPlaylist('spotify:playlist:37i9dQZF1DXcBWIGoYBM5M'); // Default playlist
+        return;
+      }
+
       if (isPlaying) {
         await player.pause();
       } else {
@@ -349,7 +381,10 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
 
   // Handle next/previous
   const handleSkip = async (direction: 'next' | 'previous') => {
-    if (!player) return;
+    if (!player || !deviceId) {
+      console.log('Player or device ID not available');
+      return;
+    }
 
     try {
       if (direction === 'next') {
@@ -364,11 +399,13 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
   };
 
   const handlePlayPlaylist = async (playlistUri: string) => {
-    try {
-      if (!player || !deviceId || !isSDKReady) {
-        throw new Error('Please wait for Spotify player to initialize');
-      }
+    if (!player || !deviceId || !isSDKReady) {
+      console.log('Player not ready');
+      return;
+    }
 
+    try {
+      // First transfer playback to this device
       await fetch('https://api.spotify.com/v1/me/player', {
         method: 'PUT',
         headers: {
@@ -377,10 +414,11 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
         },
         body: JSON.stringify({
           device_ids: [deviceId],
-          play: false,
+          play: false
         }),
       });
 
+      // Then play the playlist
       const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
         method: 'PUT',
         headers: {
