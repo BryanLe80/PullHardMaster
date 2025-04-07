@@ -11,42 +11,54 @@ export function ActiveSessionButton() {
   // Function to check for active session
   const checkForActiveSession = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) return;
-
-      // First check if there's an active session in localStorage
-      const allStorageKeys = Object.keys(localStorage);
-      const sessionStartKeys = allStorageKeys.filter(key => key.startsWith('session_start_'));
-      
-      if (sessionStartKeys.length === 0) {
-        setActiveSession(null);
+      const user = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No user found');
         return;
       }
 
-      // Get the most recent session start time
-      const mostRecentSessionId = sessionStartKeys[0].replace('session_start_', '');
-      
-      // Fetch the session details from Supabase
-      const { data, error } = await supabase
-        .from('climbing_sessions')
-        .select('*')
-        .eq('id', mostRecentSessionId)
-        .single();
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/sessions?user_id=eq.${user.data.user.id}&is_active=eq.true&select=*`, {
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to fetch active session');
+      }
+
+      const data = await response.json();
+      console.log('Fetched sessions:', data);
       
-      if (data) {
-        // Check if the session is from today
-        if (new Date(data.date).toDateString() === new Date().toDateString()) {
-          setActiveSession(data);
+      // Check if there's an active session in localStorage
+      const storedSession = localStorage.getItem('activeSession');
+      if (storedSession) {
+        const session = JSON.parse(storedSession);
+        const sessionEndTime = new Date(session.endTime).getTime();
+        const now = new Date().getTime();
+        
+        if (now < sessionEndTime) {
+          console.log('Found active session in localStorage');
+          setActiveSession(session);
+          return;
         } else {
-          setActiveSession(null);
+          // Session has expired, remove it
+          localStorage.removeItem('activeSession');
         }
       }
-    } catch (err) {
-      console.error('Error checking for active session:', err);
-      setActiveSession(null);
+
+      // If no active session in localStorage, check the database
+      if (data && data.length > 0) {
+        console.log('Found active session in database');
+        setActiveSession(data[0]);
+      } else {
+        console.log('No active session found');
+        setActiveSession(null);
+      }
+    } catch (error) {
+      console.error('Error checking for active session:', error);
+      // Don't set activeSession to null on error, just log it
     }
   };
 

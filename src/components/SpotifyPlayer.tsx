@@ -183,50 +183,6 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
           volume: 0.5
         });
 
-        // Error handling
-        newPlayer.addListener('initialization_error', ({ message }: { message: string }) => {
-          console.error('Failed to initialize:', message);
-          setError('Failed to initialize player. Please refresh the page.');
-          setIsInitializing(false);
-        });
-
-        newPlayer.addListener('authentication_error', ({ message }: { message: string }) => {
-          console.error('Failed to authenticate:', message);
-          setError('Authentication failed. Please reconnect to Spotify.');
-          setIsInitializing(false);
-        });
-
-        newPlayer.addListener('account_error', ({ message }: { message: string }) => {
-          console.error('Failed to validate Spotify account:', message);
-          setError('Spotify Premium is required for playback.');
-          setIsInitializing(false);
-        });
-
-        newPlayer.addListener('playback_error', ({ message }: { message: string }) => {
-          console.error('Failed to perform playback:', message);
-          setError('Playback error. Please try again.');
-          setIsInitializing(false);
-        });
-
-        // Playback status updates
-        newPlayer.addListener('player_state_changed', (state: WebPlaybackState | null) => {
-          if (!state) {
-            console.log('No player state available');
-            return;
-          }
-          const track = state.track_window.current_track;
-          if (!track) {
-            console.log('No current track available');
-            return;
-          }
-          setCurrentTrack({
-            ...track,
-            id: track.uri.split(':')[2],
-            uri: track.uri
-          });
-          setIsPlaying(!state.paused);
-        });
-
         // Ready
         newPlayer.addListener('ready', async ({ device_id }: { device_id: string }) => {
           console.log('Player is ready with Device ID:', device_id);
@@ -253,7 +209,7 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
             }
 
             // Wait a moment for the transfer to complete
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
 
             // Then load a default playlist to ensure we have content
             const playResponse = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
@@ -269,11 +225,67 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
 
             if (!playResponse.ok) {
               console.warn('Failed to load default playlist, but continuing...');
+              // Don't throw an error here, just log it
             }
+
+            // Wait a moment for the playlist to load
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Pause playback after loading
+            await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${device_id}`, {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+              },
+            });
           } catch (err) {
             console.error('Error during device transfer:', err);
             setError('Failed to initialize playback. Please try again.');
           }
+        });
+
+        // Playback status updates
+        newPlayer.addListener('player_state_changed', (state: WebPlaybackState | null) => {
+          if (!state) {
+            console.log('No player state available');
+            return;
+          }
+          const track = state.track_window.current_track;
+          if (!track) {
+            console.log('No current track available');
+            return;
+          }
+          setCurrentTrack({
+            ...track,
+            id: track.uri.split(':')[2],
+            uri: track.uri
+          });
+          setIsPlaying(!state.paused);
+        });
+
+        // Error handling
+        newPlayer.addListener('initialization_error', ({ message }: { message: string }) => {
+          console.error('Failed to initialize:', message);
+          setError('Failed to initialize player. Please refresh the page.');
+          setIsInitializing(false);
+        });
+
+        newPlayer.addListener('authentication_error', ({ message }: { message: string }) => {
+          console.error('Failed to authenticate:', message);
+          setError('Authentication failed. Please reconnect to Spotify.');
+          setIsInitializing(false);
+        });
+
+        newPlayer.addListener('account_error', ({ message }: { message: string }) => {
+          console.error('Failed to validate Spotify account:', message);
+          setError('Spotify Premium is required for playback.');
+          setIsInitializing(false);
+        });
+
+        newPlayer.addListener('playback_error', ({ message }: { message: string }) => {
+          console.error('Failed to perform playback:', message);
+          setError('Playback error. Please try again.');
+          setIsInitializing(false);
         });
 
         // Not Ready
