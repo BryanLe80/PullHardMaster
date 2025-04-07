@@ -209,7 +209,7 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
             }
 
             // Wait a moment for the transfer to complete
-            await new Promise(resolve => setTimeout(resolve, 3000));
+            await new Promise(resolve => setTimeout(resolve, 7000));
 
             // Get current playback state
             const stateResponse = await fetch('https://api.spotify.com/v1/me/player', {
@@ -228,6 +228,19 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
             // Only load default playlist if no content is currently playing
             if (!state || !state.item) {
               console.log('No content playing, loading default playlist...');
+              
+              // First pause any existing playback
+              await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${device_id}`, {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                },
+              });
+
+              // Wait a moment
+              await new Promise(resolve => setTimeout(resolve, 2000));
+
+              // Then load the playlist
               const playResponse = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${device_id}`, {
                 method: 'PUT',
                 headers: {
@@ -245,7 +258,7 @@ export function SpotifyPlayer({ accessToken }: SpotifyPlayerProps) {
               }
 
               // Wait for playlist to load
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              await new Promise(resolve => setTimeout(resolve, 3000));
 
               // Pause playback after loading
               await fetch(`https://api.spotify.com/v1/me/player/pause?device_id=${device_id}`, {

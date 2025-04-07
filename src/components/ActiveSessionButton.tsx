@@ -36,7 +36,7 @@ export function ActiveSessionButton() {
 
       // If no active session in localStorage, check the database
       const { data, error } = await supabase
-        .from('sessions')
+        .from('climbing_sessions')
         .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true)
