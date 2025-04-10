@@ -47,12 +47,9 @@ export function ActiveSessionButton() {
         const session = data[0];
         console.log('Found active session:', session);
         setActiveSession(session);
-        // Store in localStorage for quick access
-        localStorage.setItem('activeSession', JSON.stringify(session));
       } else {
         console.log('No active session found');
         setActiveSession(null);
-        localStorage.removeItem('activeSession');
       }
     } catch (error) {
       console.error('Error checking for active session:', error);
@@ -65,14 +62,13 @@ export function ActiveSessionButton() {
     // Initial check
     checkForActiveSession();
 
-    // Set up periodic checks every 10 seconds
-    const intervalId = setInterval(checkForActiveSession, 10000);
+    // Set up periodic checks every 5 seconds
+    const intervalId = setInterval(checkForActiveSession, 3000);
 
     // Listen for session end event
     const handleSessionEnded = () => {
       console.log('Session ended event received');
       setActiveSession(null);
-      localStorage.removeItem('activeSession');
     };
 
     window.addEventListener('sessionEnded', handleSessionEnded);
