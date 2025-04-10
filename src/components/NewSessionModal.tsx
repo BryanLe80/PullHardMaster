@@ -44,7 +44,8 @@ export function NewSessionModal({ onClose, onSuccess, existingLocations }: NewSe
             energy_level: energyLevel,
             session_quality: 3, // Default value, will be updated at session end
             date: new Date().toISOString(),
-            user_id: user.id
+            user_id: user.id,
+            is_active: true // Set the session as active when creating
           }
         ])
         .select()
@@ -62,8 +63,8 @@ export function NewSessionModal({ onClose, onSuccess, existingLocations }: NewSe
         newValue: new Date().toISOString()
       }));
       navigate(`/session/${data.id}`);
-    } catch (err) {
-      setError(err.message);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while creating the session');
     } finally {
       setLoading(false);
     }
