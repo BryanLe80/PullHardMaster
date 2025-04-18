@@ -71,18 +71,18 @@ export function NewSessionModal({ onClose, onSuccess, existingLocations }: NewSe
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">New Climbing Session</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">New Climbing Session</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Location
             </label>
             <input
@@ -91,7 +91,7 @@ export function NewSessionModal({ onClose, onSuccess, existingLocations }: NewSe
               list="locations"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:text-gray-100 dark:placeholder-gray-400"
               placeholder="Select or enter a location"
             />
             <datalist id="locations">
@@ -102,7 +102,7 @@ export function NewSessionModal({ onClose, onSuccess, existingLocations }: NewSe
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Current Energy Level</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Current Energy Level</label>
             <div className="mt-1">
               <input
                 type="range"
@@ -110,9 +110,9 @@ export function NewSessionModal({ onClose, onSuccess, existingLocations }: NewSe
                 max="5"
                 value={energyLevel}
                 onChange={(e) => setEnergyLevel(Number(e.target.value))}
-                className="w-full"
+                className="w-full dark:bg-gray-700"
               />
-              <div className="flex justify-between text-xs text-gray-500">
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span>Low Energy</span>
                 <span>Medium Energy</span>
                 <span>High Energy</span>
@@ -121,8 +121,8 @@ export function NewSessionModal({ onClose, onSuccess, existingLocations }: NewSe
           </div>
 
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">{error}</div>
+            <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
+              <div className="text-sm text-red-700 dark:text-red-300">{error}</div>
             </div>
           )}
 
@@ -130,14 +130,14 @@ export function NewSessionModal({ onClose, onSuccess, existingLocations }: NewSe
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 dark:bg-indigo-500 border border-transparent rounded-md hover:bg-indigo-700 dark:hover:bg-indigo-600 disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create Session'}
             </button>

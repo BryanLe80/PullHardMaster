@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, Link, useLocation, Navigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
-import { Mountain, Plus, LogIn, ClipboardList, Battery, Star, Cloud, Dumbbell, Map, LogOut, User, Timer } from 'lucide-react';
+import { Mountain, Plus, LogIn, ClipboardList, Battery, Star, Cloud, Dumbbell, Map, LogOut, User, Timer, Sun, Moon } from 'lucide-react';
 import { format } from 'date-fns';
 import { Calendar } from './components/Calendar';
 import { NewSessionModal } from './components/NewSessionModal';
@@ -70,12 +70,12 @@ function Dashboard() {
 
   function getQualityColor(quality: number): string {
     switch (quality) {
-      case 1: return 'bg-red-100 text-red-800';
-      case 2: return 'bg-orange-100 text-orange-800';
-      case 3: return 'bg-yellow-100 text-yellow-800';
-      case 4: return 'bg-lime-100 text-lime-800';
-      case 5: return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 1: return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200';
+      case 2: return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200';
+      case 3: return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200';
+      case 4: return 'bg-lime-100 dark:bg-lime-900/30 text-lime-800 dark:text-lime-200';
+      case 5: return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200';
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
     }
   }
 
@@ -84,15 +84,15 @@ function Dashboard() {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 dark:border-indigo-400"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-md bg-red-50 p-4 mb-4">
-        <div className="text-sm text-red-700">Error loading sessions: {error}</div>
+      <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4 mb-4">
+        <div className="text-sm text-red-700 dark:text-red-300">Error loading sessions: {error}</div>
       </div>
     );
   }
@@ -100,10 +100,12 @@ function Dashboard() {
   return (
     <>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Hello {user?.email?.split('@')[0]}!</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          Hello {user?.email?.split('@')[0] || 'there'}!
+        </h1>
         <button
           onClick={() => setShowNewSession(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
         >
           <Plus className="h-4 w-4 mr-2" />
           New Session
@@ -117,35 +119,35 @@ function Dashboard() {
       />
 
       <div className="mt-8">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Recent Sessions</h2>
-        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Recent Sessions</h2>
+        <div className="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-md">
           {sessions.length === 0 ? (
-            <div className="px-6 py-4 text-center text-gray-500">
+            <div className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
               No climbing sessions yet. Start by creating a new session!
             </div>
           ) : (
-            <ul className="divide-y divide-gray-200">
+            <ul className="divide-y divide-gray-200 dark:divide-gray-700">
               {sessions.map((session) => (
-                <li key={session.id} className="px-6 py-4 hover:bg-gray-50">
+                <li key={session.id} className="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-lg font-medium text-gray-900">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                           {session.location}
                         </h3>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {format(new Date(session.date), 'PPP')}
                         </p>
                       </div>
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
-                          <Battery className="h-4 w-4 text-gray-400" />
+                          <Battery className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                           <span className={`px-2 py-1 rounded text-sm ${getQualityColor(session.energy_level)}`}>
                             Energy: {session.energy_level}/5
                           </span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <Star className="h-4 w-4 text-gray-400" />
+                          <Star className="h-4 w-4 text-gray-400 dark:text-gray-500" />
                           <span className={`px-2 py-1 rounded text-sm ${getQualityColor(session.session_quality)}`}>
                             Quality: {session.session_quality}/5
                           </span>
@@ -153,9 +155,9 @@ function Dashboard() {
                       </div>
                     </div>
                     {session.notes && (
-                      <p className="text-sm text-gray-600">{session.notes}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">{session.notes}</p>
                     )}
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       {session.climbs?.length || 0} climbs recorded
                     </div>
                   </div>
@@ -185,8 +187,35 @@ function App() {
   const [error, setError] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return false;
+  });
   const navigate = useNavigate();
   const location = useLocation();
+
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
+
+  useEffect(() => {
+    // Check for stored theme preference
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      setIsDarkMode(true);
+    }
+  }, []);
 
   // Check if we're in an active session
   const isActiveSession = location.pathname.startsWith('/session/');
@@ -253,21 +282,21 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <div className={`min-h-screen ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-100'} flex items-center justify-center`}>
+        <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${isDarkMode ? 'border-gray-100' : 'border-gray-900'}`}></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow-sm">
+    <div className={`min-h-screen ${isDarkMode ? 'dark bg-gray-900' : 'bg-gray-100'}`}>
+      <nav className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
-                <Mountain className="h-8 w-8 text-indigo-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">PullHard</span>
+                <Mountain className={`h-8 w-8 ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`} />
+                <span className={`ml-2 text-xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>PullHard</span>
               </Link>
             </div>
             <div className="flex items-center space-x-4">
@@ -275,45 +304,51 @@ function App() {
                 <>
                   <Link
                     to="/weather"
-                    className="flex items-center text-gray-600 hover:text-gray-900"
+                    className={`flex items-center ${isDarkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-600 hover:text-gray-900'}`}
                   >
                     <Cloud className="h-5 w-5 mr-1" />
                     <span>Weather</span>
                   </Link>
                   <Link
                     to="/sessions"
-                    className="flex items-center text-gray-600 hover:text-gray-900"
+                    className={`flex items-center ${isDarkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-600 hover:text-gray-900'}`}
                   >
                     <ClipboardList className="h-5 w-5 mr-1" />
                     <span>Sessions</span>
                   </Link>
                   <Link
                     to="/routes"
-                    className="flex items-center text-gray-600 hover:text-gray-900"
+                    className={`flex items-center ${isDarkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-600 hover:text-gray-900'}`}
                   >
                     <Map className="h-5 w-5 mr-1" />
                     <span>Routes</span>
                   </Link>
                   <Link
                     to="/training"
-                    className="flex items-center text-gray-600 hover:text-gray-900"
+                    className={`flex items-center ${isDarkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-600 hover:text-gray-900'}`}
                   >
                     <Dumbbell className="h-5 w-5 mr-1" />
                     <span>Training</span>
                   </Link>
                   <Link
                     to="/profile"
-                    className="flex items-center text-gray-600 hover:text-gray-900"
+                    className={`flex items-center ${isDarkMode ? 'text-gray-300 hover:text-gray-100' : 'text-gray-600 hover:text-gray-900'}`}
                   >
                     <User className="h-5 w-5 mr-1" />
                     <span>Profile</span>
                   </Link>
                   <button
                     onClick={() => setShowSignOutConfirm(true)}
-                    className="flex items-center text-red-600 hover:text-red-700"
+                    className={`flex items-center ${isDarkMode ? 'text-red-400 hover:text-red-300' : 'text-red-600 hover:text-red-700'}`}
                   >
                     <LogOut className="h-5 w-5 mr-1" />
                     <span>Sign Out</span>
+                  </button>
+                  <button
+                    onClick={toggleDarkMode}
+                    className={`p-2 rounded-full ${isDarkMode ? 'text-yellow-400 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
                   </button>
                 </>
               )}
@@ -348,12 +383,11 @@ function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {loading ? (
-          <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <div className={`min-h-screen ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'} flex items-center justify-center`}>
+            <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${isDarkMode ? 'border-gray-100' : 'border-gray-900'}`}></div>
           </div>
         ) : user || window.location.hash ? (
           <div className="flex-1">
-            {/* Main content */}
             <div className="flex-1">
               <Routes>
                 <Route path="/" element={<Dashboard />} />
@@ -362,7 +396,7 @@ function App() {
                 <Route path="/routes" element={<RoutesPage />} />
                 <Route path="/weather" element={<WeatherPage />} />
                 <Route path="/training" element={<TrainingPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/profile" element={<ProfilePage isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />} />
               </Routes>
               <ActiveSessionButton />
             </div>

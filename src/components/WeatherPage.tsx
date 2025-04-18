@@ -27,20 +27,22 @@ export function WeatherPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Climbing Conditions Forecast</h1>
-        <p className="text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          Climbing Conditions Forecast
+        </h1>
+        <p className="text-gray-600 dark:text-gray-300">
           Smart analysis of weather patterns to suggest optimal climbing times.
         </p>
       </div>
 
       <div className="grid gap-8">
         {CLIMBING_LOCATIONS.map((location) => (
-          <div key={location.name} className="bg-white rounded-lg shadow-sm p-6">
+          <div key={location.name} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-start space-x-3 mb-6">
-              <MapPin className="h-5 w-5 text-gray-400 mt-1" />
+              <MapPin className="h-5 w-5 text-gray-400 dark:text-gray-500 mt-1" />
               <div>
-                <h2 className="font-medium text-gray-900">{location.name}</h2>
-                <p className="text-sm text-gray-500 mt-1">{location.description}</p>
+                <h2 className="font-medium text-gray-900 dark:text-gray-100">{location.name}</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{location.description}</p>
               </div>
             </div>
 
@@ -53,9 +55,11 @@ export function WeatherPage() {
         ))}
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">About Our Weather Analysis System</h2>
-        <div className="prose text-gray-600">
+      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+          About Our Weather Analysis System
+        </h2>
+        <div className="prose dark:prose-invert text-gray-600 dark:text-gray-300">
           <p>
             Our intelligent scoring system analyzes multiple weather factors to provide climbing condition recommendations:
           </p>

@@ -4,7 +4,12 @@ import { initiateSpotifyAuth, validateSpotifyToken } from '../lib/spotify';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 
-export function ProfilePage() {
+interface ProfilePageProps {
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
+}
+
+export function ProfilePage({ isDarkMode, toggleDarkMode }: ProfilePageProps) {
   const [spotifyConnected, setSpotifyConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isProcessingAuth, setIsProcessingAuth] = useState(false);
@@ -155,30 +160,30 @@ export function ProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
-        <p className="text-gray-600 mt-1">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Profile</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">
           Manage your account settings and connections
         </p>
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="text-sm text-red-700">
+        <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
+          <div className="text-sm text-red-700 dark:text-red-300">
             Error connecting to Spotify: {error}
           </div>
         </div>
       )}
 
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Connected Services</h2>
+      <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
+        <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Connected Services</h2>
         
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Music className="h-6 w-6 text-green-600" />
               <div>
-                <p className="font-medium text-gray-900">Spotify</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-gray-900 dark:text-gray-100">Spotify</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
                   {spotifyConnected 
                     ? 'Connected to Spotify'
                     : 'Connect to sync your climbing playlists'}
