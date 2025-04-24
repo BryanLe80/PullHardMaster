@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Spotify Authentication</title>
+  <script>
+    // Log the current URL for debugging
+    console.log('Callback page loaded at:', window.location.href);
+    
+    // Function to parse hash parameters
+    function getHashParams() {
+      const hash = window.location.hash.substring(1);
+      return hash.split('&').reduce((params, pair) => {
+        const [key, value] = pair.split('=');
+        params[key] = decodeURIComponent(value);
+        return params;
+      }, {});
+    }
+
+    // Handle the Spotify callback
+    try {
+      if (window.location.hash) {
+        console.log('Processing Spotify callback hash');
+        const params = getHashParams();
+        console.log('Callback parameters:', params);
+
+        // Store the token in localStorage first
+        localStorage.setItem('spotify_access_token', params.access_token);
+        localStorage.setItem('spotify_auth_state', params.state);
+
+        // Always send message to parent window if it exists
+        if (window.opener) {
+          console.log('Sending callback message to parent window');
+          
+          // Send message to parent
+          window.opener.postMessage({ 
+            type: 'SPOTIFY_CALLBACK',
+            accessToken: params.access_token,
+            state: params.state,
+            timestamp: Date.now()
+          }, window.location.origin);
+          
+          // Try to close the window
+          try {
+            window.close();
+          } catch (e) {
+            console.log('Could not close window directly, trying alternative method');
+            // Redirect to profile page as fallback
+            window.location.href = '/profile';
+          }
+        } else {
+          // If we're not in a popup, redirect to profile page
+          console.log('Not in popup, redirecting to profile');
+          window.location.href = '/profile';
+        }
+      } else {
+        console.log('No hash found in URL');
+        window.location.href = '/profile';
+      }
+    } catch (error) {
+      console.error('Error in callback page:', error);
+      window.location.href = '/profile';
+    }
+  </script>
+</head>
+<body>
+  <p>Authentication complete. You can close this window.</p>
+</body>
+</html> 
